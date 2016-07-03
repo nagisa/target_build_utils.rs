@@ -1,0 +1,10 @@
+[package]
+name = "target_build_utils"
+version = "0.1.0"
+authors = ["Simonas Kazlauskas <git@kazlauskas.me>"]
+description = "Easy and simple detection of target properties in build.rs scripts"
+keywords = ["target", "triple", "json", "build"]
+license = "ISC/Apache-2.0"
+
+[dependencies]
+serde_json="0.7"
