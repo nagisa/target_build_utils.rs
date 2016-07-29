@@ -105,13 +105,13 @@ impl TargetInfo {
                 _ => Error::InvalidSpec,
             }));
             let req = |name: &str|
-                json.find(name).and_then(|a| a.as_string()).ok_or(Error::InvalidSpec);
+                json.find(name).and_then(|a| a.as_str()).ok_or(Error::InvalidSpec);
 
             Ok(TargetInfo {
                 arch: try!(req("arch")).into(),
                 os: try!(req("os")).into(),
-                vendor: json.find("vendor").and_then(|s| s.as_string()).unwrap_or("unknown").into(),
-                env: json.find("env").and_then(|s| s.as_string()).unwrap_or("").into(),
+                vendor: json.find("vendor").and_then(|s| s.as_str()).unwrap_or("unknown").into(),
+                env: json.find("env").and_then(|s| s.as_str()).unwrap_or("").into(),
                 endian: try!(req("target-endian")).into(),
                 pointer_width: try!(req("target-pointer-width")).into(),
             })

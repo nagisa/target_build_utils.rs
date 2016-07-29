@@ -1,6 +1,6 @@
 [package]
 name = "target_build_utils"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Simonas Kazlauskas <git@kazlauskas.me>"]
 description = "Easy and simple detection of target properties in build.rs scripts"
 keywords = ["target", "triple", "json", "build"]
@@ -9,4 +9,4 @@ repository = "https://github.com/nagisa/target_build_utils.rs"
 documentation = "https://crates.fyi/crates/target_build_utils/0.1.0"
 
 [dependencies]
-serde_json="0.7"
+serde_json="0.8"
