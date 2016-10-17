@@ -41,21 +41,26 @@
 //! Now, when running `cargo build`, your `build.rs` should be aware of the properties of the
 //! target system when your crate is being cross-compiled.
 extern crate serde_json;
+extern crate phf;
 
 use std::env;
 use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::ffi::OsString;
+use std::borrow::Cow;
+use std::borrow::Cow::Borrowed as B;
 
+include!(concat!(env!("OUT_DIR"), "/builtins.rs"));
+
+#[derive(Clone, Debug)]
 pub struct TargetInfo {
-    arch: String,
-    vendor: String,
-    os: String,
-    env: String,
-    endian: String,
-    pointer_width: String,
+    arch: Cow<'static, str>,
+    vendor: Cow<'static, str>,
+    os: Cow<'static, str>,
+    env: Cow<'static, str>,
+    endian: Cow<'static, str>,
+    pointer_width: Cow<'static, str>,
 }
-
 
 #[derive(Debug)]
 pub enum Error {
@@ -108,12 +113,14 @@ impl TargetInfo {
                 json.find(name).and_then(|a| a.as_str()).ok_or(Error::InvalidSpec);
 
             Ok(TargetInfo {
-                arch: try!(req("arch")).into(),
-                os: try!(req("os")).into(),
-                vendor: json.find("vendor").and_then(|s| s.as_str()).unwrap_or("unknown").into(),
-                env: json.find("env").and_then(|s| s.as_str()).unwrap_or("").into(),
-                endian: try!(req("target-endian")).into(),
-                pointer_width: try!(req("target-pointer-width")).into(),
+                arch: Cow::Owned(try!(req("arch")).into()),
+                os: Cow::Owned(try!(req("os")).into()),
+                vendor: Cow::Owned(
+                    json.find("vendor").and_then(|s| s.as_str()).unwrap_or("unknown").into()
+                ),
+                env: Cow::Owned(json.find("env").and_then(|s| s.as_str()).unwrap_or("").into()),
+                endian: Cow::Owned(try!(req("target-endian")).into()),
+                pointer_width: Cow::Owned(try!(req("target-pointer-width")).into()),
             })
         }
 
@@ -141,65 +148,7 @@ impl TargetInfo {
     }
 
     fn load_specific(s: &str) -> Option<TargetInfo> {
-        fn ti(a: &str, v: &str, s: &str, b: &str, e: &str, w: &str) -> Option<TargetInfo> {
-            Some(TargetInfo {
-                arch: a.into(),
-                vendor: v.into(),
-                os: s.into(),
-                env: b.into(),
-                endian: e.into(),
-                pointer_width: w.into()
-            })
-        }
-        // Targets known to rustc
-        match s {
-            "x86_64-unknown-linux-gnu" => ti("x86_64", "unknown", "linux", "gnu", "little", "64"),
-            "i686-unknown-linux-gnu" |
-            "i586-unknown-linux-gnu" => ti("x86", "unknown", "linux", "gnu", "little", "32"),
-            "mips-unknown-linux-gnu" => ti("mips", "unknown", "linux", "gnu", "big", "32"),
-            "mipsel-unknown-linux-gnu" => ti("mips", "unknown", "linux", "gnu", "little", "32"),
-            "powerpc-unknown-linux-gnu" => ti("powerpc", "unknown", "linux", "gnu", "big", "32"),
-            "powerpc64-unknown-linux-gnu"=> ti("powerpc64", "unknown", "linux", "gnu", "big", "64"),
-            "powerpc64le-unknown-linux-gnu"=>
-                ti("powerpc64", "unknown", "linux", "gnu", "little", "64"),
-            "arm-unknown-linux-gnueabi" |
-            "arm-unknown-linux-gnueabihf" |
-            "armv7-unknown-linux-gnueabihf" =>
-                ti("arm", "unknown", "linux", "gnu", "little", "32"),
-            "aarch64-unknown-linux-gnu"=> ti("aarch64", "unknown", "linux", "gnu", "little", "64"),
-            "x86_64-unknown-linux-musl"=> ti("x86_64", "unknown", "linux", "musl", "little", "64"),
-            "i686-unknown-linux-musl"=> ti("x86", "unknown", "linux", "musl", "little", "32"),
-            "mips-unknown-linux-musl"=> ti("mips", "unknown", "linux", "musl", "big", "32"),
-            "mipsel-unknown-linux-musl"=> ti("mips", "unknown", "linux", "musl", "little", "32"),
-            "i686-linux-android"=> ti("x86", "unknown", "android", "", "little", "32"),
-            "arm-linux-androideabi" |
-            "armv7-linux-androideabi" => ti("arm", "unknown", "android", "", "little", "32"),
-            "aarch64-linux-android"=> ti("aarch64", "unknown", "android", "", "little", "64"),
-            "i686-unknown-freebsd"=> ti("x86", "unknown", "freebsd", "", "little", "32"),
-            "x86_64-unknown-freebsd"=> ti("x86_64", "unknown", "freebsd", "", "little", "64"),
-            "i686-unknown-dragonfly"=> ti("x86", "unknown", "dragonfly", "", "little", "32"),
-            "x86_64-unknown-dragonfly"=> ti("x86_64", "unknown", "dragonfly", "", "little", "64"),
-            "x86_64-unknown-bitrig"=> ti("x86_64", "unknown", "bitrig", "", "little", "64"),
-            "x86_64-unknown-openbsd"=> ti("x86_64", "unknown", "openbsd", "", "little", "64"),
-            "x86_64-unknown-netbsd"=> ti("x86_64", "unknown", "netbsd", "", "little", "64"),
-            "x86_64-rumprun-netbsd"=> ti("x86_64", "rumprun", "netbsd", "", "little", "64"),
-            "x86_64-apple-darwin"=> ti("x86_64", "apple", "macos", "", "little", "64"),
-            "i686-apple-darwin"=> ti("x86", "apple", "macos", "", "little", "32"),
-            "i386-apple-ios"=> ti("x86", "apple", "ios", "", "little", "32"),
-            "x86_64-apple-ios"=> ti("x86_64", "apple", "ios", "", "little", "64"),
-            "aarch64-apple-ios"=> ti("aarch64", "apple", "ios", "", "little", "64"),
-            "armv7s-apple-ios" |
-            "armv7-apple-ios"=> ti("arm", "apple", "ios", "", "little", "32"),
-            "x86_64-sun-solaris"=> ti("x86_64", "sun", "solaris", "", "little", "64"),
-            "x86_64-pc-windows-gnu"=> ti("x86_64", "pc", "windows", "gnu", "little", "64"),
-            "i686-pc-windows-gnu"=> ti("x86", "pc", "windows", "gnu", "little", "32"),
-            "x86_64-pc-windows-msvc"=> ti("x86_64", "pc", "windows", "msvc", "little", "64"),
-            "i586-pc-windows-msvc" |
-            "i686-pc-windows-msvc"=> ti("x86", "pc", "windows", "msvc", "little", "32"),
-            "le32-unknown-nacl"=> ti("le32", "unknown", "nacl", "newlib", "little", "32"),
-            "asmjs-unknown-emscripten"=> ti("asmjs", "unknown", "emscripten", "", "little", "32"),
-            _ => None
-        }
+        BUILTINS.get(s).cloned()
     }
 }
 
@@ -251,10 +200,11 @@ mod tests {
         macro_rules! check_arch {
             ($expected: expr, $bit: expr, $end: expr, $($str: expr),+) => {
                 $(
-                    assert_eq!(super::TargetInfo::from_str($str).unwrap().target_arch(), $expected);
-                    assert_eq!(super::TargetInfo::from_str($str).unwrap().target_endian(), $end);
-                    assert_eq!(super::TargetInfo::from_str($str).unwrap().target_pointer_width(),
-                               $bit);
+                    if let Ok(ti) = super::TargetInfo::from_str($str) {
+                        assert_eq!(ti.target_arch(), $expected);
+                        assert_eq!(ti.target_endian(), $end);
+                        assert_eq!(ti.target_pointer_width(), $bit);
+                    }
                 )+
             }
         }
@@ -305,8 +255,6 @@ mod tests {
                    , "powerpc64-unknown-linux-gnu");
         check_arch!("powerpc64", "64", "little"
                    , "powerpc64le-unknown-linux-gnu");
-        check_arch!("le32", "32", "little", "le32-unknown-nacl");
-        check_arch!("asmjs", "32", "little", "asmjs-unknown-emscripten");
     }
 
     #[test]
@@ -314,8 +262,9 @@ mod tests {
         macro_rules! check_vnd {
             ($expected: expr, $($str: expr),+) => {
                 $(
-                    assert_eq!(super::TargetInfo::from_str($str).unwrap().target_vendor(),
-                               $expected);
+                    if let Ok(ti) = super::TargetInfo::from_str($str) {
+                        assert_eq!(ti.target_vendor(), $expected);
+                    }
                 )+
             }
         }
@@ -339,8 +288,6 @@ mod tests {
                             , "arm-unknown-linux-gnueabi"
                             , "arm-unknown-linux-gnueabihf"
                             , "armv7-unknown-linux-gnueabihf"
-                            , "le32-unknown-nacl"
-                            , "asmjs-unknown-emscripten"
                             , "powerpc-unknown-linux-gnu"
                             , "powerpc64-unknown-linux-gnu"
                             , "powerpc64le-unknown-linux-gnu"
@@ -369,7 +316,9 @@ mod tests {
         macro_rules! check_os {
             ($expected: expr, $($str: expr),+) => {
                 $(
-                    assert_eq!(super::TargetInfo::from_str($str).unwrap().target_os(), $expected);
+                    if let Ok(ti) = super::TargetInfo::from_str($str) {
+                        assert_eq!(ti.target_os(), $expected);
+                    }
                 )+
             }
         }
@@ -414,8 +363,6 @@ mod tests {
                        , "aarch64-apple-ios"
                        , "armv7-apple-ios"
                        , "armv7s-apple-ios");
-        check_os!("nacl", "le32-unknown-nacl");
-        check_os!("emscripten", "asmjs-unknown-emscripten");
     }
 
     #[test]
@@ -423,7 +370,9 @@ mod tests {
         macro_rules! check_env {
             ($expected: expr, $($str: expr),+) => {
                 $(
-                    assert_eq!(super::TargetInfo::from_str($str).unwrap().target_env(), $expected);
+                    if let Ok(ti) = super::TargetInfo::from_str($str) {
+                        assert_eq!(ti.target_env(), $expected);
+                    }
                 )+
             }
         }
@@ -468,8 +417,7 @@ mod tests {
                      , "aarch64-apple-ios"
                      , "armv7-apple-ios"
                      , "armv7s-apple-ios"
-                     , "asmjs-unknown-emscripten");
-        check_env!("newlib", "le32-unknown-nacl");
+                     );
     }
 
     #[test]
