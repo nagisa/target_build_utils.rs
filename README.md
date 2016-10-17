@@ -1,3 +1,10 @@
+[![Travis CI][tcii]][tci] [![Appveyor CI][acii]][aci]
+
+[tcii]: https://travis-ci.org/nagisa/target_build_utils.rs.svg?branch=master
+[tci]: https://travis-ci.org/nagisa/target_build_utils.rs
+[acii]: https://ci.appveyor.com/api/projects/status/jasfj7r1o085xpxo?svg=true
+[aci]: https://ci.appveyor.com/project/nagisa/target-build-utils-rs
+
 Utility crate to handle the `TARGET` environment variable passed into build.rs scripts.
 
 Unlike rust’s `#[cfg(target…)]` attributes, `build.rs`-scripts do not expose a convenient way
