@@ -50,6 +50,8 @@ use std::ffi::OsString;
 use std::borrow::Cow;
 use std::borrow::Cow::Borrowed as B;
 
+pub mod changelog;
+
 #[derive(Debug)]
 pub enum Error {
     /// The `TARGET` environment variable does not exist or is not valid utf-8
