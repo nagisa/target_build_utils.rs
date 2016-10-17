@@ -50,18 +50,6 @@ use std::ffi::OsString;
 use std::borrow::Cow;
 use std::borrow::Cow::Borrowed as B;
 
-include!(concat!(env!("OUT_DIR"), "/builtins.rs"));
-
-#[derive(Clone, Debug)]
-pub struct TargetInfo {
-    arch: Cow<'static, str>,
-    vendor: Cow<'static, str>,
-    os: Cow<'static, str>,
-    env: Cow<'static, str>,
-    endian: Cow<'static, str>,
-    pointer_width: Cow<'static, str>,
-}
-
 #[derive(Debug)]
 pub enum Error {
     /// The `TARGET` environment variable does not exist or is not valid utf-8
@@ -72,6 +60,46 @@ pub enum Error {
     InvalidSpec,
     /// IO error occured during search of JSON target files
     Io(::std::io::Error)
+}
+
+impl ::std::fmt::Display for Error {
+    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        match *self {
+            Error::Io(ref e) => <::std::io::Error as ::std::fmt::Display>::fmt(e, fmt),
+            ref e => fmt.write_str(std::error::Error::description(e)),
+        }
+    }
+}
+
+impl ::std::error::Error for Error {
+    fn description(&self) -> &str {
+        match *self {
+            Error::TargetUnset => "TARGET environment variable is not set or is not valid utf-8",
+            Error::TargetNotFound => "The requested target was not found",
+            Error::InvalidSpec => "Custom target JSON file was not valid",
+            Error::Io(ref e) => e.description(),
+        }
+    }
+
+    fn cause(&self) -> Option<&::std::error::Error> {
+        match *self {
+            Error::Io(ref e) => Some(e),
+            _ => None
+        }
+    }
+}
+
+
+include!(concat!(env!("OUT_DIR"), "/builtins.rs"));
+
+#[derive(Clone, Debug)]
+pub struct TargetInfo {
+    arch: Cow<'static, str>,
+    vendor: Cow<'static, str>,
+    os: Cow<'static, str>,
+    env: Cow<'static, str>,
+    endian: Cow<'static, str>,
+    pointer_width: Cow<'static, str>,
 }
 
 impl TargetInfo {
