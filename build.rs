@@ -6,8 +6,10 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 
 fn main(){
-    let rustc = std::env::var_os("RUSTC").expect("RUSTC is not set");
-    let c = Command::new(rustc)
+    let mut cmd = std::env::var_os("RUSTC")
+                  .map(|c| Command::new(c))
+                  .unwrap_or(Command::new("rustc"));
+    let c = cmd
             .args(&["--print=target-list"])
             .stdout(Stdio::piped())
             .spawn()
@@ -35,8 +37,10 @@ fn main(){
 
 
 fn cfg_for_target(target: &str) -> String {
-    let rustc = std::env::var_os("RUSTC").expect("RUSTC is not set");
-    let c = Command::new(rustc)
+    let mut cmd = std::env::var_os("RUSTC")
+                  .map(|c| Command::new(c))
+                  .unwrap_or(Command::new("rustc"));
+    let c = cmd
             .args(&["--target", target, "--print=cfg"])
             .stdout(Stdio::piped())
             .spawn().and_then(|c| c.wait_with_output());
