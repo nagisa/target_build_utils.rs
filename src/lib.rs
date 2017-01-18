@@ -97,11 +97,14 @@ include!(concat!(env!("OUT_DIR"), "/builtins.rs"));
 #[derive(Clone, Debug)]
 pub struct TargetInfo {
     arch: Cow<'static, str>,
-    vendor: Cow<'static, str>,
     os: Cow<'static, str>,
     env: Cow<'static, str>,
     endian: Cow<'static, str>,
     pointer_width: Cow<'static, str>,
+    // Switches such as `cfg(unix)`
+    switches: Cow<'static, [Cow<'static, str>]>,
+    // Other keys such as `target_vendor` or `target_has_atomic`
+    other_keys: Cow<'static, [(Cow<'static, str>, Cow<'static, str>)]>,
 }
 
 impl TargetInfo {
@@ -142,15 +145,15 @@ impl TargetInfo {
             let req = |name: &str|
                 json.find(name).and_then(|a| a.as_str()).ok_or(Error::InvalidSpec);
 
+            let vendor = json.find("vendor").and_then(|s| s.as_str()).unwrap_or("unknown").into();
             Ok(TargetInfo {
                 arch: Cow::Owned(try!(req("arch")).into()),
                 os: Cow::Owned(try!(req("os")).into()),
-                vendor: Cow::Owned(
-                    json.find("vendor").and_then(|s| s.as_str()).unwrap_or("unknown").into()
-                ),
                 env: Cow::Owned(json.find("env").and_then(|s| s.as_str()).unwrap_or("").into()),
                 endian: Cow::Owned(try!(req("target-endian")).into()),
                 pointer_width: Cow::Owned(try!(req("target-pointer-width")).into()),
+                switches: B(&[]),
+                other_keys: Cow::Owned(vec![(B("target_vendor"), Cow::Owned(vendor))]),
             })
         }
 
@@ -185,25 +188,19 @@ impl TargetInfo {
 impl TargetInfo {
     /// Architecture of the targeted machine
     ///
-    /// Corresponds to the `#[cfg(target_arch)]` in Rust code.
+    /// Corresponds to the `#[cfg(target_arch = {})]` in Rust code.
     pub fn target_arch(&self) -> &str {
         &*self.arch
     }
-    /// Vendor of the targeted machine
-    ///
-    /// Corresponds to the `#[cfg(target_vendor)]` in Rust code.
-    pub fn target_vendor(&self) -> &str {
-        &*self.vendor
-    }
     /// OS of the targeted machine
     ///
-    /// Corresponds to the `#[cfg(target_os)]` in Rust code.
+    /// Corresponds to the `#[cfg(target_os = {})]` in Rust code.
     pub fn target_os(&self) -> &str {
         &*self.os
     }
     /// Environment (ABI) of the targeted machine
     ///
-    /// Corresponds to the `#[cfg(target_env)]` in Rust code.
+    /// Corresponds to the `#[cfg(target_env = {})]` in Rust code.
     pub fn target_env(&self) -> &str {
         &*self.env
     }
@@ -211,15 +208,63 @@ impl TargetInfo {
     ///
     /// Valid values are: `little` and `big`.
     ///
-    /// Corresponds to the `#[cfg(target_endian)]` in Rust code.
+    /// Corresponds to the `#[cfg(target_endian = {})]` in Rust code.
     pub fn target_endian(&self) -> &str {
         &*self.endian
     }
     /// Pointer width of the targeted machine
     ///
-    /// Corresponds to the `#[cfg(target_pointer_width)]` in Rust code.
+    /// Corresponds to the `#[cfg(target_pointer_width = {})]` in Rust code.
     pub fn target_pointer_width(&self) -> &str {
         &*self.pointer_width
+    }
+
+    /// Vendor of the targeted machine
+    ///
+    /// Corresponds to the `#[cfg(target_vendor = {})]` in Rust code.
+    ///
+    /// This currently returns `Some` only when when targetting nightly rustc version as well as
+    /// for custom JSON targets.
+    pub fn target_vendor(&self) -> Option<&str> {
+        self.target_cfg_value("target_vendor")
+    }
+
+    /// Check if the configuration switch is set for target
+    ///
+    /// Corresponds to the `#[cfg({key} = {})]` in Rust code.
+    ///
+    /// This function behaves specially in regard to
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use target_build_utils::TargetInfo;
+    /// let info = TargetInfo::new().expect("target info");
+    /// let is_unix = info.target_cfg("unix");
+    /// ```
+    pub fn target_cfg(&self, key: &str) -> bool {
+        self.switches.iter().any(|x| x == key)
+    }
+
+    /// Return the value of an arbitrary configuration key
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use target_build_utils::TargetInfo;
+    /// let info = TargetInfo::new().expect("target info");
+    /// assert_eq!(info.target_cfg_value("target_os"), Some(info.target_os()));
+    /// assert_eq!(info.target_cfg_value("target_banana"), None);
+    /// ```
+    pub fn target_cfg_value<'a>(&'a self, key: &str) -> Option<&'a str> {
+        match key {
+            "target_arch" => Some(self.target_arch()),
+            "target_os" => Some(self.target_os()),
+            "target_env" => Some(self.target_env()),
+            "target_endian" => Some(self.target_endian()),
+            "target_pointer_width" => Some(self.target_pointer_width()),
+            key => self.other_keys.iter().find(|t| t.0 == key).map(|t| &*t.1)
+        }
     }
 }
 
@@ -293,7 +338,9 @@ mod tests {
             ($expected: expr, $($str: expr),+) => {
                 $(
                     if let Ok(ti) = super::TargetInfo::from_str($str) {
-                        assert_eq!(ti.target_vendor(), $expected);
+                        if let Some(vnd) = ti.target_vendor() {
+                            assert_eq!(vnd, $expected);
+                        }
                     }
                 )+
             }
@@ -475,7 +522,6 @@ mod tests {
         assert_eq!(ti.target_endian(), "little");
         assert_eq!(ti.target_pointer_width(), "42");
         assert_eq!(ti.target_os(), "nux");
-        assert_eq!(ti.target_vendor(), "unknown");
-        assert_eq!(ti.target_env(), "");
+        assert_eq!(ti.target_vendor(), Some("unknown"));
     }
 }

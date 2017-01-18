@@ -4,6 +4,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::fmt::Write as FmtWrite;
 
 fn main(){
     let mut cmd = std::env::var_os("RUSTC")
@@ -48,15 +49,48 @@ fn cfg_for_target(target: &str) -> String {
     if let Ok(o) = c {
         if o.status.success() {
             let string = String::from_utf8_lossy(&o.stdout);
-            let (a, v, o, env, end, pwd) = parse(&string);
+            let mut switches = Vec::new();
+            let mut other_keys = Vec::new();
+            let (mut arch, mut os, mut env, mut endian, mut ptrw) = ("", "", "", "", "");
+            for (k, v) in parse(&string) {
+                match (k, v) {
+                    ("target_arch", Some(v)) => arch = v,
+                    ("target_os", Some(v)) => os = v,
+                    ("target_env", Some(v)) => env = v,
+                    ("target_endian", Some(v)) => endian = v,
+                    ("target_pointer_width", Some(v)) => ptrw = v,
+                    (_, None) => match k {
+                        "unix" |
+                        "windows" |
+                        "target_thread_local" => switches.push(k),
+                        _ => println!("Switch `{}` blacklisted", k),
+                    },
+                    (k, Some(v)) => other_keys.push((k, v)),
+                }
+            }
+            let mut switches_fmt = String::with_capacity(1024);
+            let mut other_keys_fmt = String::with_capacity(4096);
+            switches_fmt.push_str("[");
+            for switch in switches {
+                write!(switches_fmt, "B({:?}), ", switch).expect("writes to String do not fail");
+            }
+            switches_fmt.push_str("]");
+            other_keys_fmt.push_str("[");
+            for (k, v) in other_keys {
+                write!(other_keys_fmt, "(B({:?}), B({:?})), ", k, v)
+                    .expect("writes to String do not fail");
+            }
+            other_keys_fmt.push_str("]");
+
             format!("TargetInfo {{ \
                         arch: B({:?}), \
-                        vendor: B({:?}), \
                         os: B({:?}), \
                         env: B({:?}), \
                         endian: B({:?}), \
-                        pointer_width: B({:?}) \
-                    }}", a, v, o, env, end, pwd)
+                        pointer_width: B({:?}), \
+                        switches: B(&{}), \
+                        other_keys: B(&{}) \
+                    }}", arch, os, env, endian, ptrw, switches_fmt, other_keys_fmt)
         } else {
             println!("rustc --print=cfg --target={} did not exit successfully", target);
             String::new()
@@ -66,25 +100,12 @@ fn cfg_for_target(target: &str) -> String {
     }
 }
 
-fn parse(i: &str) -> (&str, &str, &str, &str, &str, &str) {
-    let mut ret = ("", "", "", "", "", "");
-    for line in i.lines() {
-        let (c, l) = if line.starts_with("target_os") {
-            (&mut ret.2, line)
-        } else if line.starts_with("target_arch") {
-            (&mut ret.0, line)
-        } else if line.starts_with("target_vendor") {
-            (&mut ret.1, line)
-        } else if line.starts_with("target_env") {
-            (&mut ret.3, line)
-        } else if line.starts_with("target_pointer_width") {
-            (&mut ret.5, line)
-        } else if line.starts_with("target_endian") {
-            (&mut ret.4, line)
-        } else {
-            continue;
-        };
-        *c = l.split('"').nth(1).unwrap_or("");
-    }
-    ret
+fn parse(i: &str) -> Vec<(&str, Option<&str>)> {
+    i.lines().map(|line| {
+        let mut split = line.split('=');
+        let key = split.next().expect("probably bug");
+        let val = split.next().map(|v| v.trim().trim_matches('"'));
+        debug_assert!(split.next().is_none());
+        (key, val)
+    }).collect()
 }
