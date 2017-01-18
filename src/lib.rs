@@ -233,7 +233,8 @@ impl TargetInfo {
     ///
     /// Corresponds to the `#[cfg({key} = {})]` in Rust code.
     ///
-    /// This function behaves specially in regard to
+    /// This function behaves specially in regard to custom JSON targets and will always return
+    /// `false` for them currently.
     ///
     /// # Examples
     ///
@@ -247,6 +248,9 @@ impl TargetInfo {
     }
 
     /// Return the value of an arbitrary configuration key
+    ///
+    /// This function behaves specially in regard to custom JSON targets and will rarely return
+    /// any extra target information.
     ///
     /// # Examples
     ///

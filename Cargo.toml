@@ -1,6 +1,6 @@
 [package]
 name = "target_build_utils"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Simonas Kazlauskas <git@kazlauskas.me>"]
 description = "Easy and simple detection of target properties in build.rs scripts"
 keywords = ["target", "triple", "json", "build"]
