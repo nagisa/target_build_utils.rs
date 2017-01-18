@@ -510,9 +510,9 @@ mod tests {
         use std::env;
         env::set_var("RUST_TARGET_PATH", "");
         super::TargetInfo::from_str("my-great-target").err().unwrap();
-        env::set_var("RUST_TARGET_PATH", "/usr/");
+        env::set_var("RUST_TARGET_PATH", env::join_paths(&["/usr/"]).unwrap());
         super::TargetInfo::from_str("my-great-target").err().unwrap();
-        env::set_var("RUST_TARGET_PATH", "/usr/:src/");
+        env::set_var("RUST_TARGET_PATH", env::join_paths(&["/usr/","src/"]).unwrap());
         let target = super::TargetInfo::from_str("my-great-target").unwrap();
         external_is_correct(&target);
     }
