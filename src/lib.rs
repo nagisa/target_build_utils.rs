@@ -138,18 +138,15 @@ impl TargetInfo {
         fn load_json(path: &Path) -> Result<TargetInfo, Error> {
             use serde_json as s;
             let f = try!(File::open(path).map_err(|e| Error::Io(e)));
-            let json: s::Value = try!(s::from_reader(f).map_err(|e| match e {
-                s::Error::Io(e) => Error::Io(e),
-                _ => Error::InvalidSpec,
-            }));
+            let json: s::Value = try!(s::from_reader(f).map_err(|_| Error::InvalidSpec));
             let req = |name: &str|
-                json.find(name).and_then(|a| a.as_str()).ok_or(Error::InvalidSpec);
+                json.get(name).and_then(|a| a.as_str()).ok_or(Error::InvalidSpec);
 
-            let vendor = json.find("vendor").and_then(|s| s.as_str()).unwrap_or("unknown").into();
+            let vendor = json.get("vendor").and_then(|s| s.as_str()).unwrap_or("unknown").into();
             Ok(TargetInfo {
                 arch: Cow::Owned(try!(req("arch")).into()),
                 os: Cow::Owned(try!(req("os")).into()),
-                env: Cow::Owned(json.find("env").and_then(|s| s.as_str()).unwrap_or("").into()),
+                env: Cow::Owned(json.get("env").and_then(|s| s.as_str()).unwrap_or("").into()),
                 endian: Cow::Owned(try!(req("target-endian")).into()),
                 pointer_width: Cow::Owned(try!(req("target-pointer-width")).into()),
                 switches: B(&[]),
