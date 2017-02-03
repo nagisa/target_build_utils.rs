@@ -1,5 +1,10 @@
 //! Project Changelog
 
+/// Release 0.2.1 (2017-02-03)
+///
+/// * Upgrade serde to 0.9
+pub mod r0_2_1 {}
+
 /// Release 0.2.0 (2017-01-18)
 ///
 /// # Breaking changes
