@@ -13,3 +13,9 @@ env:
   - ARCH=i686
 notifications:
   email: false
+matrix:
+  - env: CARGO_OPTIONS='--verbose'
+  - env: CARGO_OPTIONS='--verbose --no-default-features'
+script:
+  - cargo build $CARGO_OPTIONS
+  - cargo test $CARGO_OPTIONS

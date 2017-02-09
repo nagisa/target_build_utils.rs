@@ -40,12 +40,12 @@
 //!
 //! Now, when running `cargo build`, your `build.rs` should be aware of the properties of the
 //! target system when your crate is being cross-compiled.
+#[cfg(feature = "serde_json")]
 extern crate serde_json;
 extern crate phf;
 
 use std::env;
 use std::path::{Path, PathBuf};
-use std::fs::File;
 use std::ffi::OsString;
 use std::borrow::Cow;
 use std::borrow::Cow::Borrowed as B;
@@ -61,7 +61,9 @@ pub enum Error {
     /// Custom target JSON was found, but was invalid
     InvalidSpec,
     /// IO error occured during search of JSON target files
-    Io(::std::io::Error)
+    Io(::std::io::Error),
+    /// Crate was built without support for custom targets JSON file
+    CustomTargetsUnsupported,
 }
 
 impl ::std::fmt::Display for Error {
@@ -80,6 +82,7 @@ impl ::std::error::Error for Error {
             Error::TargetNotFound => "The requested target was not found",
             Error::InvalidSpec => "Custom target JSON file was not valid",
             Error::Io(ref e) => e.description(),
+            Error::CustomTargetsUnsupported => "Support for custom target JSON file was disabled at compilation",
         }
     }
 
@@ -135,7 +138,9 @@ impl TargetInfo {
     ///     .expect("could not get target");
     /// ```
     pub fn from_str(s: &str) -> Result<TargetInfo, Error> {
+        #[cfg(feature = "serde_json")]
         fn load_json(path: &Path) -> Result<TargetInfo, Error> {
+            use std::fs::File;
             use serde_json as s;
             let f = try!(File::open(path).map_err(|e| Error::Io(e)));
             let json: s::Value = try!(s::from_reader(f).map_err(|_| Error::InvalidSpec));
@@ -152,6 +157,11 @@ impl TargetInfo {
                 switches: B(&[]),
                 other_keys: Cow::Owned(vec![(B("target_vendor"), Cow::Owned(vendor))]),
             })
+        }
+
+        #[cfg(not(feature = "serde_json"))]
+        fn load_json(_: &Path) -> Result<TargetInfo, Error> {
+            Err(Error::CustomTargetsUnsupported)
         }
 
         if let Some(t) = TargetInfo::load_specific(s) {
@@ -499,6 +509,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "serde_json")]
     fn external_work() {
         use std::env;
         env::set_var("TARGET", "src/my-great-target.json");
@@ -507,6 +518,15 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(feature = "serde_json"))]
+    fn external_work() {
+        use std::env;
+        env::set_var("TARGET", "src/my-great-target.json");
+        super::TargetInfo::new().err().unwrap();
+    }
+
+    #[test]
+    #[cfg(feature = "serde_json")]
     fn external_search_work() {
         use std::env;
         env::set_var("RUST_TARGET_PATH", "");
@@ -518,6 +538,19 @@ mod tests {
         external_is_correct(&target);
     }
 
+    #[test]
+    #[cfg(not(feature = "serde_json"))]
+    fn external_search_work() {
+        use std::env;
+        env::set_var("RUST_TARGET_PATH", "");
+        super::TargetInfo::from_str("my-great-target").err().unwrap();
+        env::set_var("RUST_TARGET_PATH", env::join_paths(&["/usr/"]).unwrap());
+        super::TargetInfo::from_str("my-great-target").err().unwrap();
+        env::set_var("RUST_TARGET_PATH", env::join_paths(&["/usr/","src/"]).unwrap());
+        super::TargetInfo::from_str("my-great-target").err().unwrap();
+    }
+
+    #[cfg(feature = "serde_json")]
     fn external_is_correct(ti: &super::TargetInfo) {
         assert_eq!(ti.target_arch(), "x86_64");
         assert_eq!(ti.target_endian(), "little");
