@@ -1,5 +1,19 @@
 //! Project Changelog
 
+/// Release 0.3.0 (2017-02-10)
+///
+/// # Breaking changes
+///
+/// * The `Error` enumeration gained a new variant `CustomTargetsUnsupported` to signify the fact
+///   this particular build of the crate does not support custom JSON targets.
+///
+/// # Other changes
+///
+/// * `serde_json` is now an enabled-by-default optional dependency. If custom target support is
+/// not necessary in your project, it can be disabled with [`default-features =
+/// false`](http://doc.crates.io/specifying-dependencies.html#choosing-features).
+pub mod r0_3_0 {}
+
 /// Release 0.2.1 (2017-02-03)
 ///
 /// * Upgrade serde to 0.9
