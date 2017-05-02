@@ -1,8 +1,8 @@
 [package]
 name = "target_build_utils"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Simonas Kazlauskas <target_build_utils@kazlauskas.me>"]
-description = "Easy and simple detection of target properties in build.rs scripts"
+description = "DEPRECATED: Use Cargo environment variables `CARGO_CFG_TARGET_*`"
 keywords = ["target", "triple", "json", "build"]
 license = "ISC/Apache-2.0"
 repository = "https://github.com/nagisa/target_build_utils.rs"

@@ -1,3 +1,11 @@
+# DEPRECATED
+
+Use environment variables set by cargo from 1.14.0 onwards.
+
+They look like this: `CARGO_CFG_TARGET_OS`, `CARGO_CFG_TARGET_ENV`…
+
+---
+
 [![Travis CI][tcii]][tci] [![Appveyor CI][acii]][aci]
 
 [tcii]: https://travis-ci.org/nagisa/target_build_utils.rs.svg?branch=master

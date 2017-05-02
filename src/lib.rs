@@ -1,3 +1,10 @@
+//! # DEPRECATED
+//! Use environment variables set by cargo from 1.14.0 onwards.
+//!
+//! They look like this: `CARGO_CFG_TARGET_OS`, `CARGO_CFG_TARGET_ENV`…
+//!
+//! ---
+//!
 //! Utility crate to handle the `TARGET` environment variable passed into build.rs scripts.
 //!
 //! Unlike rust’s `#[cfg(target…)]` attributes, `build.rs`-scripts do not expose a convenient way
