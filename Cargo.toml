@@ -1,6 +1,6 @@
 [package]
 name = "target_build_utils"
-version = "0.3.2"
+version = "0.3.1"
 authors = ["Simonas Kazlauskas <target_build_utils@kazlauskas.me>"]
 description = "DEPRECATED: Use Cargo environment variables `CARGO_CFG_TARGET_*`"
 keywords = ["target", "triple", "json", "build"]
